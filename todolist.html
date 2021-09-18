@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TO DO LIST</title>
+  </head>
+  <script type="text/babel">
+    const { useEffect, useState, useCallback, useMemo, FC, memo } = React;
+    const {
+      Button,
+      Input,
+      Modal,
+      message,
+      Popconfirm,
+      List,
+      Divider,
+      Typography,
+    } = antd;
+
+    const TodoApp = () => {
+      const [todoList, setTodoList] = useState([
+        "Breakfast cake milk",
+        "Fruit for lunch",
+        "No dinner",
+      ]);
+      const [thingsDone, setThingsDone] = useState([]);
+      const [inputValue, setInputValue] = useState("");
+      const [searchKey, setSearchKey] = useState("");
+      const [modifyValue, setModifyValue] = useState("");
+      const [visible, setVisible] = useState("");
+      const [modifyItem, setModifyItem] = useState("");
+      const [opra, setOpra] = useState("");
+
+      useEffect(() => {
+        localStorage.getItem("todoList") &&
+          setTodoList(localStorage.getItem("todoList").split(","));
+        localStorage.getItem("thingDone") &&
+          setThingsDone(localStorage.getItem("thingDone").split(","));
+      }, []);
+
+      useEffect(() => {
+        localStorage.setItem("todoList", todoList);
+        localStorage.setItem("thingDone", thingsDone);
+      }, [todoList, thingsDone]);
+
+      //移动
+      const haveDone = useCallback(
+        (item, flag) => {
+          if (flag === "done") {
+            let arr = [...todoList];
+            arr.splice(todoList.indexOf(item), 1);
+            setTodoList(arr);
+            setThingsDone([item, ...thingsDone]);
+          } else {
+            let arr = [...thingsDone];
+            arr.splice(thingsDone.indexOf(item), 1);
+            setThingsDone(arr);
+            setTodoList([item, ...todoList]);
+          }
+          message.success("move successfully~");
+        },
+        [todoList, thingsDone]
+      );
+
+      //修改
+      const modify = useCallback(() => {
+        if (opra === "notDone") {
+          let arr = [...todoList];
+          arr.splice(todoList.indexOf(modifyItem), 1, modifyValue);
+          setTodoList(arr);
+        } else {
+          let arr = [...thingsDone];
+          arr.splice(thingsDone.indexOf(modifyItem), 1, modifyValue);
+          setThingsDone(arr);
+        }
+        setVisible(false);
+        setModifyValue("");
+        message.success("modify successfully~");
+      }, [todoList, modifyItem, modifyValue, thingsDone, opra]);
+
+      //删除
+      const deleteList = useCallback(
+        (item, flag) => {
+          if (flag !== "done") {
+            let arr = [...todoList];
+            arr.splice(todoList.indexOf(item), 1);
+            setTodoList(arr);
+          } else {
+            let arr = [...thingsDone];
+            arr.splice(thingsDone.indexOf(item), 1);
+            setThingsDone(arr);
+          }
+        },
+        [todoList, thingsDone]
+      );
+
+      //添加
+      const submit = useCallback(() => {
+        if (inputValue && !inputValue.includes(",")) {
+          setTodoList([...todoList, inputValue]);
+          setInputValue("");
+          message.success("This task added in listButtom~");
+        } else if (inputValue && inputValue.includes(",")) {
+          message.warning(
+            "You can change the comma to a period or a semicolon"
+          );
+        } else {
+          message.error("Please enter your plan~");
+        }
+      }, [todoList, inputValue]);
+
+      return (
+        <div className="todoList">
+          <h1>TODO IN A NEW DAY</h1>
+          <div className="wrap">
+            <div className="todo listWJ">
+              <Input.Search
+                className="inputSearch"
+                placeholder="Looking for a plan you haven't made"
+                onSearch={(v) => {
+                  console.log(v);
+                  setSearchKey(v);
+                }}
+              />
+              <TodoList
+                todoList={todoList}
+                deleteList={deleteList}
+                searchKey={searchKey}
+                setVisible={setVisible}
+                setModifyItem={setModifyItem}
+                haveDone={haveDone}
+                setOpra={setOpra}
+                setModifyValue={setModifyValue}
+              />
+              <div>
+                <Input
+                  style={{ width: 60 }}
+                  className="addInput"
+                  value={inputValue}
+                  onChange={(e) => {
+                    setInputValue(e.target.value);
+                  }}
+                  onKeyPress={(e) => e.which === 13 && submit()}
+                  placeholder="Add your plan over here"
+                />
+                <Button type="primary" onClick={submit} className="addButton">
+                  add #{todoList.length}
+                </Button>
+              </div>
+            </div>
+            <div className="did listWJ">
+              <MadeList
+                thingsDone={thingsDone}
+                deleteList={deleteList}
+                setOpra={setOpra}
+                haveDone={haveDone}
+                setVisible={setVisible}
+                setModifyItem={setModifyItem}
+                setModifyValue={setModifyValue}
+              />
+              {visible && (
+                <Modal
+                  visible={visible}
+                  title="modify"
+                  children={
+                    <Input
+                      placeholder="Enter your modify content"
+                      value={modifyValue}
+                      onChange={(e) => {
+                        setModifyValue(e.target.value);
+                      }}
+                    />
+                  }
+                  onOk={modify}
+                  onCancel={() => {
+                    setVisible(false);
+                    setModifyValue("");
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const TodoList = memo(
+      ({
+        todoList,
+        searchKey,
+        deleteList,
+        setVisible,
+        setModifyItem,
+        haveDone,
+        setOpra,
+        setModifyValue,
+      }) => {
+        return (
+          <List
+            header={<div>Things not done today</div>}
+            footer={<div>Keep it up, you can do it!</div>}
+            bordered
+            dataSource={todoList.filter((item) => item.includes(searchKey))}
+            renderItem={(item, index) => (
+              <List.Item>
+                <Typography.Text mark>{[`${index + 1}`]}</Typography.Text>
+                <span>{item}</span>
+                <Button type="primary" onClick={() => haveDone(item, "done")}>
+                  already done?
+                </Button>
+                <Button
+                  onClick={() => {
+                    setOpra("notDone");
+                    setVisible(true);
+                    setModifyItem(item);
+                    setModifyValue(item);
+                  }}
+                >
+                  modify
+                </Button>
+                <Popconfirm
+                  title="Are you sure to delete this task?"
+                  onConfirm={() => {
+                    deleteList(item);
+                    message.success("Delete successfully");
+                  }}
+                  onCancel={() => {
+                    message.info("Come on,you can do it!");
+                  }}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <Button danger>delete</Button>
+                </Popconfirm>
+              </List.Item>
+            )}
+          />
+        );
+      }
+    );
+
+    const MadeList = memo(
+      ({
+        thingsDone,
+        deleteList,
+        setOpra,
+        haveDone,
+        setModifyItem,
+        setVisible,
+        setModifyValue,
+      }) => {
+        return (
+          <List
+            header={<div>Things done today</div>}
+            footer={<div>You do well, keep</div>}
+            bordered
+            dataSource={thingsDone}
+            renderItem={(item, index) => (
+              <List.Item>
+                <Typography.Text mark>{[`${index + 1}`]}</Typography.Text>
+                <span>{item}</span>
+                <Button
+                  type="primary"
+                  onClick={() => haveDone(item, "moveback")}
+                >
+                  Move back
+                </Button>
+                <Button
+                  onClick={() => {
+                    setOpra("done");
+                    setVisible(true);
+                    setModifyItem(item, "donetThing");
+                    setModifyValue(item);
+                  }}
+                >
+                  modify
+                </Button>
+                <Popconfirm
+                  title="Are you sure to delete this task done?"
+                  onConfirm={() => {
+                    deleteList(item, "done");
+                    message.success("Delete successfully~");
+                  }}
+                  onCancel={() => {
+                    message.info("Click on No");
+                  }}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <Button danger>delete</Button>
+                </Popconfirm>
+              </List.Item>
+            )}
+          />
+        );
+      }
+    );
+    ReactDOM.render(<TodoApp />, document.querySelector("#root"));
+  </script>
+  <style>
+    #root {
+      text-align: center;
+    }
+    .todoList {
+      width: 100%;
+      height: 100%;
+    }
+    .wrap {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .listWJ {
+      width: 50%;
+      max-height: 100%;
+      overflow: auto;
+    }
+    .inputSearch {
+      margin-bottom: 10px;
+      width: 80% !important;
+    }
+    .addInput {
+      width: 60% !important;
+      margin: 10px 0 !important;
+    }
+    .ant-list {
+      max-height: 675px;
+      overflow: auto;
+    }
+  </style>
+  <script
+    crossorigin
+    src="https://unpkg.com/react@17/umd/react.development.js"
+  ></script>
+  <script
+    crossorigin
+    src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+  ></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://cdn.bootcdn.net/ajax/libs/antd/4.16.9/antd.js"></script>
+  <link
+    href="https://cdn.bootcdn.net/ajax/libs/antd/4.16.9/antd.min.css"
+    rel="stylesheet"
+  />
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
